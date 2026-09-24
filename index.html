@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1022">
+  <meta name="description" content="式を入れると、そのグラフが坂になる。ボールを転がして、浮かんだ点を全部拾わせるパズル。直線・放物線・sin の波を使い分けて、全 12 ステージ。">
+  <title>SLOPE WRITER — 式の坂でボールを転がす</title>
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="SLOPE WRITER">
+  <meta property="og:title" content="SLOPE WRITER — 式の坂でボールを転がす">
+  <meta property="og:description" content="式を入れると、そのグラフが坂になる。ボールを転がして、浮かんだ点を全部拾わせるパズル。直線・放物線・sin の波を使い分けて、全 12 ステージ。">
+  <meta property="og:url" content="https://t-of.github.io/slope-writer/">
+  <meta property="og:image" content="https://t-of.github.io/slope-writer/icons/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- apple-mobile-web-app-status-bar-style は付けない（black-translucent だと iOS 26 で上部が隠れる） -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SLOPE WRITER">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="./webapp-kit/webapp-kit.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <!-- タイトル -->
+  <main class="screen title" id="title">
+    <h1 class="logo">SLOPE WRITER</h1>
+    <p class="tagline">式の坂でボールを転がす</p>
+    <svg class="sample" viewBox="0 0 200 140" aria-hidden="true">
+      <defs>
+        <pattern id="sgrid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0H0V10" fill="none" stroke="rgba(150,170,255,0.12)" stroke-width="1"/></pattern>
+        <radialGradient id="sball"><stop offset="0" stop-color="#fff6cf"/><stop offset="0.5" stop-color="#ffd35c"/><stop offset="1" stop-color="#ffd35c" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="200" height="140" rx="10" fill="#0e1430"/>
+      <rect width="200" height="140" rx="10" fill="url(#sgrid)"/>
+      <path d="M0 70H200M100 0V140" stroke="rgba(160,180,255,0.3)" stroke-width="1"/>
+      <path d="M8 28 C 60 44, 90 110, 140 104 S 190 70, 196 58" fill="none" stroke="#9b8cff" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="30" cy="25" r="11" fill="url(#sball)"/>
+      <circle cx="30" cy="25" r="5.5" fill="#ffe28a"/>
+      <circle cx="84" cy="76" r="4" fill="none" stroke="#7fffd4" stroke-width="1.5"/><circle cx="84" cy="76" r="1.6" fill="#7fffd4"/>
+      <circle cx="150" cy="93" r="4" fill="none" stroke="#7fffd4" stroke-width="1.5"/><circle cx="150" cy="93" r="1.6" fill="#7fffd4"/>
+      <circle cx="186" cy="60" r="4" fill="none" stroke="#7fffd4" stroke-width="1.5"/><circle cx="186" cy="60" r="1.6" fill="#7fffd4"/>
+    </svg>
+    <ol class="howto">
+      <li><span>下のキーで式を入れると、そのグラフが線になる（<code>-x</code> で右下がりの坂）</span></li>
+      <li><span>「スタート」でボールが落ちて、線の上を転がる</span></li>
+      <li><span>浮かんだ点に全部ふれたらクリア。だめなら式を直してもう一度</span></li>
+    </ol>
+    <button class="big" id="continue" type="button">つづきから</button>
+    <div class="stages" id="stages"></div>
+    <div class="sub">
+      <button class="pill" data-wak="install" hidden>アプリにする</button>
+      <button class="pill" data-wak="share">共有</button>
+      <button class="pill" id="soundBtn" type="button" aria-pressed="true">音 オン</button>
+    </div>
+    <p class="credit"><a href="/">T.OF...</a> のアプリ</p>
+  </main>
+
+  <!-- 遊ぶ -->
+  <main class="screen play" id="play" hidden>
+    <header class="top">
+      <button class="tbtn" id="back" type="button" aria-label="もどる">‹ もどる</button>
+      <span class="top__name" id="stageName"></span>
+      <span class="dots" id="dots"></span>
+      <button class="tbtn tbtn--answer" id="answerBtn" type="button" hidden>解答例</button>
+      <button class="tbtn" id="helpBtn" type="button" aria-label="遊び方">?</button>
+    </header>
+    <div class="board" id="board">
+      <canvas id="cv"></canvas>
+      <p class="toast" id="toast" hidden></p>
+    </div>
+    <p class="hint" id="hint"><span id="hintText"></span><button id="hintClose" type="button" aria-label="ヒントを消す">×</button></p>
+    <div class="controls" id="controls">
+      <div class="chips"><div class="chips__list" id="chips"></div><span class="chips__count" id="count"></span></div>
+      <div class="inrow">
+        <button class="mode" id="modeBtn" type="button">y =</button>
+        <div class="expr field is-on" id="exprView" data-f="expr" role="textbox" aria-label="式"></div>
+        <button class="rangeBtn" id="rangeBtn" type="button" aria-pressed="false">範囲</button>
+      </div>
+      <div class="range" id="rangeRow" hidden>
+        <div class="field" data-f="min" id="minView" role="textbox" aria-label="範囲の下"></div>
+        <span id="rangeVar">≤ x ≤</span>
+        <div class="field" data-f="max" id="maxView" role="textbox" aria-label="範囲の上"></div>
+      </div>
+      <p class="err" id="err"></p>
+      <div class="keypad" id="keypad"></div>
+      <div class="actions">
+        <button class="act act--draw" id="drawBtn" type="button">この式で引く</button>
+        <button class="act act--run" id="runBtn" type="button">スタート ▶</button>
+        <button class="act act--reset" id="resetBtn" type="button" aria-label="はじめの位置">↺</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- PC のキーボード用（全角・日本語入力の字を受ける）。スマホでは使わない -->
+  <input class="kb" id="kb" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" tabindex="-1" aria-hidden="true">
+
+  <!-- クリア -->
+  <div class="overlay" id="clear" hidden>
+    <div class="card">
+      <p class="card__title" id="clearTitle">クリア</p>
+      <p class="stars" id="clearStars"></p>
+      <p class="card__info" id="clearInfo"></p>
+      <button class="big" id="nextBtn" type="button">次へ</button>
+      <div class="card__row">
+        <button class="pill" id="againBtn" type="button">もう一度</button>
+        <button class="pill" id="shareBtn" type="button">共有</button>
+        <button class="pill" id="listBtn" type="button">ステージ一覧</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 遊び方 -->
+  <div class="overlay" id="help" hidden>
+    <div class="card card--help">
+      <p class="card__title">遊び方</p>
+      <ol class="howto">
+        <li><span>下のキーで式を入れて「この式で引く」。グラフが線になる</span></li>
+        <li><span>「スタート」でボールが落ちて、線の上を転がる</span></li>
+        <li><span>浮かんだ点に全部ふれたらクリア。落ちたり止まったりしたら、式を直してもう一度</span></li>
+      </ol>
+      <p class="help__more">
+        「y =」を押すと「x =」（縦の線）に替わる。「範囲」で線を途中で終わらせられる。<br>
+        式のチップを押すと直せる。✕ か長押しで消す。<br>
+        書ける式: <code>2x</code> <code>-x^2</code> <code>3(x+1)</code> <code>sin(x)</code> <code>abs(x)</code> <code>sqrt(x)</code> <code>min(a, b)</code> <code>pi</code> <code>e</code><br>
+        引いた本数が目標以内なら ★3。3 回失敗すると「解答例」が出る（見てクリアしたら ★1）。
+      </p>
+      <button class="big" id="helpClose" type="button">とじる</button>
+    </div>
+  </div>
+
+  <script src="./webapp-kit/webapp-kit.js"></script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
